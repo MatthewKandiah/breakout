@@ -14,17 +14,22 @@ MAX_FRAMES_IN_FLIGHT :: 2
 WINDOW_WIDTH_INITIAL :: 800
 WINDOW_HEIGHT_INITIAL :: 600
 
-pink :: glsl.vec3{1,0,1}
-green :: glsl.vec3{0,1,0}
+pink :: glsl.vec3{1, 0, 1}
+green :: glsl.vec3{0, 1, 0}
+yellow :: glsl.vec3{1, 1, 0}
 
 vertices :: []Vertex {
-	{{-0.5, -0.5}, pink},
-	{{0.5, -0.5}, pink},
-	{{0.5, 0.5}, pink},
+	{{0.0, -0.5}, yellow},
+	{{0.5, -0.5}, yellow},
+	{{0.5, 0.0}, yellow},
+	{{0.0, 0.0}, yellow},
+	{{-0.5, 0.0}, pink},
+	{{0.0, 0.0}, pink},
+	{{0.0, 0.5}, pink},
 	{{-0.5, 0.5}, pink},
 }
 // TODO-Matt: make indices into a slice of glsl.vec3?
-indices :: []u32{0, 1, 2, 2, 3, 0}
+indices :: []u32{0, 1, 2, 2, 3, 0, 4, 5, 6, 6, 7, 4}
 
 Vertex :: struct {
 	pos: glsl.vec2,
@@ -585,6 +590,7 @@ setup_renderer :: proc() -> RendererState {
 			{.DEVICE_LOCAL},
 		)
 
+		// TODO-Matt: remove staging buffer and move vertex buffer to host visible memory
 		staging_buffer_data: rawptr
 		vk.MapMemory(state.device, staging_buffer_memory, 0, buffer_size, {}, &staging_buffer_data)
 		intrinsics.mem_copy_non_overlapping(staging_buffer_data, raw_data(vertices), buffer_size)
@@ -595,6 +601,7 @@ setup_renderer :: proc() -> RendererState {
 	{ 	// create index buffer, allocate memory for it, and bind buffer to memory
 		buffer_size := cast(vk.DeviceSize)(size_of(indices[0]) * len(indices))
 
+		// TODO-Matt: remove staging buffer and move index buffer to host visible memory
 		staging_buffer, staging_buffer_memory := create_buffer(
 			&state,
 			buffer_size,
