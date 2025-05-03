@@ -5,6 +5,7 @@ import "base:runtime"
 import "core:fmt"
 import "core:math/linalg/glsl"
 import "core:os"
+import "core:time"
 import "vendor:glfw"
 import vk "vendor:vulkan"
 
@@ -13,23 +14,13 @@ REQUIRED_EXTENSION_NAMES := []cstring{vk.KHR_SWAPCHAIN_EXTENSION_NAME}
 MAX_FRAMES_IN_FLIGHT :: 2
 WINDOW_WIDTH_INITIAL :: 800
 WINDOW_HEIGHT_INITIAL :: 600
+VERTEX_BUFFER_SIZE :: 1000
+INDEX_BUFFER_SIZE :: 1000
 
 pink :: glsl.vec3{1, 0, 1}
 green :: glsl.vec3{0, 1, 0}
 yellow :: glsl.vec3{1, 1, 0}
-
-vertices :: []Vertex {
-	{{0.0, -0.5}, yellow},
-	{{0.5, -0.5}, yellow},
-	{{0.5, 0.0}, yellow},
-	{{0.0, 0.0}, yellow},
-	{{-0.5, 0.0}, pink},
-	{{0.0, 0.0}, pink},
-	{{0.0, 0.5}, pink},
-	{{-0.5, 0.5}, pink},
-}
-// TODO-Matt: make indices into a slice of glsl.vec3?
-indices :: []u32{0, 1, 2, 2, 3, 0, 4, 5, 6, 6, 7, 4}
+red :: glsl.vec3{1, 0, 0}
 
 Vertex :: struct {
 	pos: glsl.vec2,
@@ -64,8 +55,9 @@ RendererState :: struct {
 	graphics_pipeline:               vk.Pipeline,
 	graphics_queue:                  vk.Queue,
 	graphics_queue_family_index:     u32,
-	index_buffer:                    vk.Buffer,
-	index_buffer_memory:             vk.DeviceMemory,
+	index_buffers:                   [MAX_FRAMES_IN_FLIGHT]vk.Buffer,
+	index_buffers_memory:            [MAX_FRAMES_IN_FLIGHT]vk.DeviceMemory,
+	index_buffers_mapped:            [MAX_FRAMES_IN_FLIGHT]rawptr,
 	instance:                        vk.Instance,
 	physical_device:                 vk.PhysicalDevice,
 	pipeline_layout:                 vk.PipelineLayout,
@@ -88,8 +80,9 @@ RendererState :: struct {
 	sync_semaphores_image_available: [MAX_FRAMES_IN_FLIGHT]vk.Semaphore,
 	sync_semaphores_render_finished: [MAX_FRAMES_IN_FLIGHT]vk.Semaphore,
 	window:                          glfw.WindowHandle,
-	vertex_buffer:                   vk.Buffer,
-	vertex_buffer_memory:            vk.DeviceMemory,
+	vertex_buffers:                  [MAX_FRAMES_IN_FLIGHT]vk.Buffer,
+	vertex_buffers_memory:           [MAX_FRAMES_IN_FLIGHT]vk.DeviceMemory,
+	vertex_buffers_mapped:           [MAX_FRAMES_IN_FLIGHT]rawptr,
 }
 
 setup_renderer :: proc() -> RendererState {
@@ -569,62 +562,36 @@ setup_renderer :: proc() -> RendererState {
 		}
 	}
 
-	{ 	// create vertex buffer, allocate memory for it, and bind buffer to memory
-		buffer_size := cast(vk.DeviceSize)(size_of(vertices[0]) * len(vertices))
-
-		staging_buffer, staging_buffer_memory := create_buffer(
+	for i in 0 ..< MAX_FRAMES_IN_FLIGHT {
+		state.vertex_buffers[i], state.vertex_buffers_memory[i] = create_buffer(
 			&state,
-			buffer_size,
-			{.TRANSFER_SRC},
-			{.HOST_VISIBLE, .HOST_COHERENT},
+			VERTEX_BUFFER_SIZE,
+			{.VERTEX_BUFFER},
+			{.HOST_VISIBLE, .HOST_CACHED},
 		)
-		defer {
-			vk.DestroyBuffer(state.device, staging_buffer, nil)
-			vk.FreeMemory(state.device, staging_buffer_memory, nil)
-		}
-
-		state.vertex_buffer, state.vertex_buffer_memory = create_buffer(
-			&state,
-			buffer_size,
-			{.VERTEX_BUFFER, .TRANSFER_DST},
-			{.DEVICE_LOCAL},
+		vk.MapMemory(
+			state.device,
+			state.vertex_buffers_memory[i],
+			0,
+			VERTEX_BUFFER_SIZE,
+			{},
+			&state.vertex_buffers_mapped[i],
 		)
 
-		// TODO-Matt: remove staging buffer and move vertex buffer to host visible memory
-		staging_buffer_data: rawptr
-		vk.MapMemory(state.device, staging_buffer_memory, 0, buffer_size, {}, &staging_buffer_data)
-		intrinsics.mem_copy_non_overlapping(staging_buffer_data, raw_data(vertices), buffer_size)
-		vk.UnmapMemory(state.device, staging_buffer_memory)
-		copy_buffer(&state, staging_buffer, state.vertex_buffer, buffer_size)
-	}
-
-	{ 	// create index buffer, allocate memory for it, and bind buffer to memory
-		buffer_size := cast(vk.DeviceSize)(size_of(indices[0]) * len(indices))
-
-		// TODO-Matt: remove staging buffer and move index buffer to host visible memory
-		staging_buffer, staging_buffer_memory := create_buffer(
+		state.index_buffers[i], state.index_buffers_memory[i] = create_buffer(
 			&state,
-			buffer_size,
-			{.TRANSFER_SRC},
-			{.HOST_VISIBLE, .HOST_COHERENT},
+			INDEX_BUFFER_SIZE,
+			{.INDEX_BUFFER},
+			{.HOST_VISIBLE, .HOST_CACHED},
 		)
-		defer {
-			vk.DestroyBuffer(state.device, staging_buffer, nil)
-			vk.FreeMemory(state.device, staging_buffer_memory, nil)
-		}
-
-		state.index_buffer, state.index_buffer_memory = create_buffer(
-			&state,
-			buffer_size,
-			{.INDEX_BUFFER, .TRANSFER_DST},
-			{.DEVICE_LOCAL},
+		vk.MapMemory(
+			state.device,
+			state.index_buffers_memory[i],
+			0,
+			INDEX_BUFFER_SIZE,
+			{},
+			&state.index_buffers_mapped[i],
 		)
-
-		staging_buffer_data: rawptr
-		vk.MapMemory(state.device, staging_buffer_memory, 0, buffer_size, {}, &staging_buffer_data)
-		intrinsics.mem_copy_non_overlapping(staging_buffer_data, raw_data(indices), buffer_size)
-		vk.UnmapMemory(state.device, staging_buffer_memory)
-		copy_buffer(&state, staging_buffer, state.index_buffer, buffer_size)
 	}
 
 	{ 	// create descriptor pool
@@ -737,10 +704,12 @@ teardown_renderer :: proc(state: ^RendererState) {
 		vk.DestroyFence(state.device, state.sync_fences_in_flight[i], nil)
 	}
 	vk.DestroyDescriptorPool(state.device, state.descriptor_pool, nil)
-	vk.DestroyBuffer(state.device, state.index_buffer, nil)
-	vk.FreeMemory(state.device, state.index_buffer_memory, nil)
-	vk.DestroyBuffer(state.device, state.vertex_buffer, nil)
-	vk.FreeMemory(state.device, state.vertex_buffer_memory, nil)
+	for i in 0 ..< MAX_FRAMES_IN_FLIGHT {
+		vk.DestroyBuffer(state.device, state.index_buffers[i], nil)
+		vk.FreeMemory(state.device, state.index_buffers_memory[i], nil)
+		vk.DestroyBuffer(state.device, state.vertex_buffers[i], nil)
+		vk.FreeMemory(state.device, state.vertex_buffers_memory[i], nil)
+	}
 	vk.DestroyCommandPool(state.device, state.command_pool, nil)
 	teardown_swapchain(state)
 	vk.DestroyPipeline(state.device, state.graphics_pipeline, nil)
@@ -1137,6 +1106,16 @@ draw_frame :: proc(using state: ^RendererState) {
 	vk.ResetFences(device, 1, &sync_fences_in_flight[frame_index])
 	vk.ResetCommandBuffer(command_buffers[frame_index], {})
 	record_command_buffer(state)
+	intrinsics.mem_copy_non_overlapping(
+		vertex_buffers_mapped[frame_index],
+		raw_data(vertices),
+		VERTEX_BUFFER_SIZE,
+	)
+	intrinsics.mem_copy_non_overlapping(
+		index_buffers_mapped[frame_index],
+		raw_data(indices),
+		INDEX_BUFFER_SIZE,
+	)
 	wait_stages := []vk.PipelineStageFlags{{.COLOR_ATTACHMENT_OUTPUT}}
 	submit_info := vk.SubmitInfo {
 		sType                = .SUBMIT_INFO,
@@ -1200,16 +1179,15 @@ record_command_buffer :: proc(using state: ^RendererState) {
 	}
 	vk.CmdBeginRenderPass(command_buffers[frame_index], &render_pass_begin_info, .INLINE)
 	vk.CmdBindPipeline(command_buffers[frame_index], .GRAPHICS, graphics_pipeline)
-	vertex_buffers := []vk.Buffer{vertex_buffer}
 	offsets := []vk.DeviceSize{0}
 	vk.CmdBindVertexBuffers(
 		command_buffers[frame_index],
 		0,
 		1,
-		raw_data(vertex_buffers),
+		&vertex_buffers[frame_index],
 		raw_data(offsets),
 	)
-	vk.CmdBindIndexBuffer(command_buffers[frame_index], state.index_buffer, 0, .UINT32)
+	vk.CmdBindIndexBuffer(command_buffers[frame_index], index_buffers[frame_index], 0, .UINT32)
 	viewport := vk.Viewport {
 		x        = 0,
 		y        = 0,
