@@ -14,11 +14,14 @@ MAX_FRAMES_IN_FLIGHT :: 2
 WINDOW_WIDTH_INITIAL :: 800
 WINDOW_HEIGHT_INITIAL :: 600
 
+pink :: glsl.vec3{1,0,1}
+green :: glsl.vec3{0,1,0}
+
 vertices :: []Vertex {
-	{{-0.5, -0.5}, {1, 0, 0}},
-	{{0.5, -0.5}, {0, 1, 0}},
-	{{0.5, 0.5}, {0, 0, 1}},
-	{{-0.5, 0.5}, {1, 1, 1}},
+	{{-0.5, -0.5}, pink},
+	{{0.5, -0.5}, pink},
+	{{0.5, 0.5}, pink},
+	{{-0.5, 0.5}, pink},
 }
 // TODO-Matt: make indices into a slice of glsl.vec3?
 indices :: []u32{0, 1, 2, 2, 3, 0}
@@ -1178,7 +1181,7 @@ record_command_buffer :: proc(using state: ^RendererState) {
 		panic("failed to begin recording command buffer")
 	}
 	clear_colour := vk.ClearValue {
-		color = {float32 = {0, 0, 0, 1}},
+		color = {float32 = {green.r, green.g, green.b, 1}},
 	}
 	render_pass_begin_info := vk.RenderPassBeginInfo {
 		sType = .RENDER_PASS_BEGIN_INFO,
