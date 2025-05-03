@@ -1088,8 +1088,7 @@ end_single_time_commands :: proc(state: ^RendererState, temp_command_buffer: ^vk
 	vk.FreeCommandBuffers(state.device, state.command_pool, 1, temp_command_buffer)
 }
 
-// TODO-Matt: pass in vertices and indices to draw
-draw_frame :: proc(using state: ^RendererState) {
+draw_frame :: proc(using state: ^RendererState, vertices: []Vertex, indices: []u32) {
 	vk.WaitForFences(device, 1, &sync_fences_in_flight[frame_index], true, max(u64))
 	acquire_next_image_res := vk.AcquireNextImageKHR(
 		device,
@@ -1105,7 +1104,68 @@ draw_frame :: proc(using state: ^RendererState) {
 	}
 	vk.ResetFences(device, 1, &sync_fences_in_flight[frame_index])
 	vk.ResetCommandBuffer(command_buffers[frame_index], {})
-	record_command_buffer(state)
+
+	{ 	//record command buffer
+		command_buffer_begin_info := vk.CommandBufferBeginInfo {
+			sType = .COMMAND_BUFFER_BEGIN_INFO,
+		}
+		if res := vk.BeginCommandBuffer(command_buffers[frame_index], &command_buffer_begin_info);
+		   res != .SUCCESS {
+			panic("failed to begin recording command buffer")
+		}
+		clear_colour := vk.ClearValue {
+			color = {float32 = {green.r, green.g, green.b, 1}},
+		}
+		render_pass_begin_info := vk.RenderPassBeginInfo {
+			sType = .RENDER_PASS_BEGIN_INFO,
+			renderPass = render_pass,
+			framebuffer = swapchain_framebuffers[swapchain_image_index],
+			renderArea = vk.Rect2D{offset = {0, 0}, extent = swapchain_extent},
+			clearValueCount = 1,
+			pClearValues = &clear_colour,
+		}
+		vk.CmdBeginRenderPass(command_buffers[frame_index], &render_pass_begin_info, .INLINE)
+		vk.CmdBindPipeline(command_buffers[frame_index], .GRAPHICS, graphics_pipeline)
+		offsets := []vk.DeviceSize{0}
+		vk.CmdBindVertexBuffers(
+			command_buffers[frame_index],
+			0,
+			1,
+			&vertex_buffers[frame_index],
+			raw_data(offsets),
+		)
+		vk.CmdBindIndexBuffer(command_buffers[frame_index], index_buffers[frame_index], 0, .UINT32)
+		viewport := vk.Viewport {
+			x        = 0,
+			y        = 0,
+			width    = cast(f32)swapchain_extent.width,
+			height   = cast(f32)swapchain_extent.height,
+			minDepth = 0,
+			maxDepth = 1,
+		}
+		vk.CmdBindDescriptorSets(
+			command_buffers[frame_index],
+			.GRAPHICS,
+			state.pipeline_layout,
+			0,
+			1,
+			&state.descriptor_sets[frame_index],
+			0,
+			nil,
+		)
+		vk.CmdSetViewport(command_buffers[frame_index], 0, 1, &viewport)
+		scissor := vk.Rect2D {
+			offset = {0, 0},
+			extent = swapchain_extent,
+		}
+		vk.CmdSetScissor(command_buffers[frame_index], 0, 1, &scissor)
+		vk.CmdDrawIndexed(command_buffers[frame_index], cast(u32)len(indices), 1, 0, 0, 0)
+		vk.CmdEndRenderPass(command_buffers[frame_index])
+		if res := vk.EndCommandBuffer(command_buffers[frame_index]); res != .SUCCESS {
+			panic("failed to record command buffer")
+		}
+	}
+
 	intrinsics.mem_copy_non_overlapping(
 		vertex_buffers_mapped[frame_index],
 		raw_data(vertices),
@@ -1156,65 +1216,4 @@ draw_frame :: proc(using state: ^RendererState) {
 
 	frame_index += 1
 	frame_index %= MAX_FRAMES_IN_FLIGHT
-}
-
-record_command_buffer :: proc(using state: ^RendererState) {
-	command_buffer_begin_info := vk.CommandBufferBeginInfo {
-		sType = .COMMAND_BUFFER_BEGIN_INFO,
-	}
-	if res := vk.BeginCommandBuffer(command_buffers[frame_index], &command_buffer_begin_info);
-	   res != .SUCCESS {
-		panic("failed to begin recording command buffer")
-	}
-	clear_colour := vk.ClearValue {
-		color = {float32 = {green.r, green.g, green.b, 1}},
-	}
-	render_pass_begin_info := vk.RenderPassBeginInfo {
-		sType = .RENDER_PASS_BEGIN_INFO,
-		renderPass = render_pass,
-		framebuffer = swapchain_framebuffers[swapchain_image_index],
-		renderArea = vk.Rect2D{offset = {0, 0}, extent = swapchain_extent},
-		clearValueCount = 1,
-		pClearValues = &clear_colour,
-	}
-	vk.CmdBeginRenderPass(command_buffers[frame_index], &render_pass_begin_info, .INLINE)
-	vk.CmdBindPipeline(command_buffers[frame_index], .GRAPHICS, graphics_pipeline)
-	offsets := []vk.DeviceSize{0}
-	vk.CmdBindVertexBuffers(
-		command_buffers[frame_index],
-		0,
-		1,
-		&vertex_buffers[frame_index],
-		raw_data(offsets),
-	)
-	vk.CmdBindIndexBuffer(command_buffers[frame_index], index_buffers[frame_index], 0, .UINT32)
-	viewport := vk.Viewport {
-		x        = 0,
-		y        = 0,
-		width    = cast(f32)swapchain_extent.width,
-		height   = cast(f32)swapchain_extent.height,
-		minDepth = 0,
-		maxDepth = 1,
-	}
-	vk.CmdBindDescriptorSets(
-		command_buffers[frame_index],
-		.GRAPHICS,
-		state.pipeline_layout,
-		0,
-		1,
-		&state.descriptor_sets[frame_index],
-		0,
-		nil,
-	)
-	vk.CmdSetViewport(command_buffers[frame_index], 0, 1, &viewport)
-	scissor := vk.Rect2D {
-		offset = {0, 0},
-		extent = swapchain_extent,
-	}
-	vk.CmdSetScissor(command_buffers[frame_index], 0, 1, &scissor)
-	vk.CmdDrawIndexed(command_buffers[frame_index], cast(u32)len(indices), 1, 0, 0, 0)
-	vk.CmdEndRenderPass(command_buffers[frame_index])
-	if res := vk.EndCommandBuffer(command_buffers[frame_index]); res != .SUCCESS {
-		panic("failed to record command buffer")
-	}
 }
