@@ -160,7 +160,7 @@ get_drawing_data :: proc(game: GameState) -> (vertices: []Vertex, indices: []u32
 	return vertex_backing_array[0:vertex_count], index_backing_array[0:index_count]
 }
 
-update_state :: proc(game: ^GameState, keys_state: KeysState, delta_t: f32) {
+update_state :: proc(game: ^GameState, keys_state: KeysState, delta_t: f32, sound: ^SoundState) {
 	if keys_state.left_held && !keys_state.right_held {
 		game.paddle_pos_x = clamp(game.paddle_pos_x - PADDLE_SPEED * delta_t, -1, 1)
 	}
@@ -226,6 +226,7 @@ update_state :: proc(game: ^GameState, keys_state: KeysState, delta_t: f32) {
 					   -1 + cast(f32)(col_index + 1) * BLOCK_WIDTH,
 					   -1 + BLOCK_TOP_MARGIN + cast(f32)row_index * BLOCK_HEIGHT,
 				   ) {
+					play_sound(sound, beep_file_path)
 					block.exists = false
 					game.ball_vel_y *= -1
 				} else if game.ball_vel_y < 0 &&
@@ -235,6 +236,7 @@ update_state :: proc(game: ^GameState, keys_state: KeysState, delta_t: f32) {
 					   -1 + cast(f32)(col_index + 1) * BLOCK_WIDTH,
 					   -1 + BLOCK_TOP_MARGIN + cast(f32)(row_index + 1) * BLOCK_HEIGHT,
 				   ) {
+					play_sound(sound, beep_file_path)
 					block.exists = false
 					game.ball_vel_y *= -1
 				} else if game.ball_vel_x > 0 &&
@@ -244,6 +246,7 @@ update_state :: proc(game: ^GameState, keys_state: KeysState, delta_t: f32) {
 					   -1 + BLOCK_TOP_MARGIN + cast(f32)(row_index + 1) * BLOCK_HEIGHT,
 					   -1 + cast(f32)col_index * BLOCK_WIDTH,
 				   ) {
+					play_sound(sound, beep_file_path)
 					block.exists = false
 					game.ball_vel_x *= -1
 				} else if game.ball_vel_x < 0 &&
@@ -253,6 +256,7 @@ update_state :: proc(game: ^GameState, keys_state: KeysState, delta_t: f32) {
 					   -1 + BLOCK_TOP_MARGIN + cast(f32)(row_index + 1) * BLOCK_HEIGHT,
 					   -1 + cast(f32)(col_index + 1) * BLOCK_WIDTH,
 				   ) {
+					play_sound(sound, beep_file_path)
 					block.exists = false
 					game.ball_vel_x *= -1
 				}

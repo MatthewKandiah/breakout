@@ -6,8 +6,8 @@ SoundState :: struct {
 	engine: ma.engine,
 }
 
-setup_sound :: proc() -> SoundState {
-  sound: SoundState
+// TODO-Matt: why does this #force_inline fix the segfault?
+setup_sound :: #force_inline proc() -> (sound: SoundState) {
 	if res := ma.engine_init(nil, &sound.engine); res != .SUCCESS {
 		panic("failed to init miniaudio engine")
 	}
