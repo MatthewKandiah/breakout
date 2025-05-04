@@ -3,6 +3,7 @@ package main
 import "core:fmt"
 import "core:time"
 import "vendor:glfw"
+import ma "vendor:miniaudio"
 import vk "vendor:vulkan"
 
 vertex_backing_array: [VERTEX_BUFFER_LEN]Vertex
@@ -41,6 +42,11 @@ key_callback :: proc "c" (
 main :: proc() {
 	renderer := setup_renderer()
 	game := setup_game()
+	// TODO-Matt: don't understand why this segfaults, but inlining it all works
+	sound := setup_sound()
+
+	beep_file_path :: "beep.wav"
+	play_sound(&sound, beep_file_path)
 
 	glfw.SetKeyCallback(renderer.window, key_callback)
 
