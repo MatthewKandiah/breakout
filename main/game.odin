@@ -14,6 +14,7 @@ GameState :: struct {
 }
 
 Block :: struct {
+	exists: bool,
 	colour: glsl.vec3,
 }
 
@@ -21,7 +22,8 @@ setup_game :: proc() -> (game: GameState) {
 	for j in 0 ..< BLOCK_GRID_HEIGHT {
 		for i in 0 ..< BLOCK_GRID_WIDTH {
 			game.block_grid[j][i] = {
-				colour = red,
+				exists = j != 3 && j != 4,
+				colour = red if (i + j) % 2 == 0 else yellow,
 			}
 		}
 	}
@@ -33,9 +35,10 @@ get_drawing_data :: proc(game: GameState) -> (vertices: []Vertex, indices: []u32
 	index_count: u32 = 0
 	for block_line, row_index in game.block_grid {
 		for block, col_index in block_line {
+			if !block.exists {continue}
 			base_x: f32 = -1 + cast(f32)col_index * BLOCK_WIDTH
 			base_y: f32 = -1 + cast(f32)row_index * BLOCK_HEIGHT + BLOCK_TOP_MARGIN
-      colour := red if (row_index + col_index) % 2 == 0 else yellow
+			colour := red if (row_index + col_index) % 2 == 0 else yellow
 			vertex_backing_array[vertex_count] = {
 				pos = {base_x, base_y},
 				col = colour,
