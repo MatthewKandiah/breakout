@@ -32,10 +32,10 @@ main :: proc() {
 		delta_t := cast(f32)(finish_time - start_time) / 1_000_000
 		start_time = finish_time
 		if keys_state.left_held && !keys_state.right_held {
-			game.paddle_pos_x -= PADDLE_SPEED * delta_t
+			game.paddle_pos_x = clamp(game.paddle_pos_x - PADDLE_SPEED * delta_t, -1, 1)
 		}
 		if keys_state.right_held && !keys_state.left_held {
-			game.paddle_pos_x += PADDLE_SPEED * delta_t
+			game.paddle_pos_x = clamp(game.paddle_pos_x + PADDLE_SPEED * delta_t, -1, 1)
 		}
 		vertices, indices = get_drawing_data(game)
 		draw_frame(&renderer, vertices, indices)
