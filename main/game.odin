@@ -178,8 +178,9 @@ update_state :: proc(game: ^GameState, keys_state: KeysState, delta_t: f32) {
 	}
 	game.ball_pos_y += game.ball_vel_y
 	if game.ball_pos_y > 1 {
-		game.ball_pos_y = 1
-		game.ball_vel_y *= -1
+		// lose condition
+		game.running = false
+		return
 	} else if game.ball_pos_y < -1 {
 		game.ball_pos_y = -1
 		game.ball_vel_y *= -1
