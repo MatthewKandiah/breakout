@@ -157,3 +157,44 @@ get_drawing_data :: proc(game: GameState) -> (vertices: []Vertex, indices: []u32
 	}
 	return vertex_backing_array[0:vertex_count], index_backing_array[0:index_count]
 }
+
+update_state :: proc(game: ^GameState, keys_state: KeysState, delta_t: f32) {
+	if keys_state.left_held && !keys_state.right_held {
+		game.paddle_pos_x = clamp(game.paddle_pos_x - PADDLE_SPEED * delta_t, -1, 1)
+	}
+	if keys_state.right_held && !keys_state.left_held {
+		game.paddle_pos_x = clamp(game.paddle_pos_x + PADDLE_SPEED * delta_t, -1, 1)
+	}
+	// updating ball position - dumbly assume the ball won't move far enough to warp through a block in a single tick
+	game.ball_pos_x += game.ball_vel_x
+	if game.ball_pos_x > 1 {
+		game.ball_pos_x = 1
+		game.ball_vel_x *= -1
+	} else if game.ball_pos_x < -1 {
+		game.ball_pos_x = -1
+		game.ball_vel_x *= -1
+	}
+	game.ball_pos_y += game.ball_vel_y
+	if game.ball_pos_y > 1 {
+		game.ball_pos_y = 1
+		game.ball_vel_y *= -1
+	} else if game.ball_pos_y < -1 {
+		game.ball_pos_y = -1
+		game.ball_vel_y *= -1
+	}
+}
+
+ball_intersects_horizontal :: proc(game: GameState, xleft, xright, y: f32) -> bool {
+	if xleft > xright {panic("left must not be greater than right")}
+	if game.ball_pos_y + BALL_HEIGHT < y || game.ball_pos_y - BALL_HEIGHT > y {return false}
+	if game.ball_pos_x + BALL_WIDTH < xleft || game.ball_pos_x - BALL_WIDTH > xright {return false}
+	return true
+}
+
+ball_intersects_vertical :: proc(game: GameState, ytop, ybottom, x: f32) -> bool {
+	if ytop > ybottom {panic("top must not be greater than bottom")}
+	if game.ball_pos_x + BALL_WIDTH < x || game.ball_pos_x - BALL_WIDTH > x {return false}
+	if game.ball_pos_y + BALL_HEIGHT < ytop ||
+	   game.ball_pos_y - BALL_WIDTH > ybottom {return false}
+	return true
+}
