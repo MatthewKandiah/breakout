@@ -56,6 +56,22 @@ main :: proc() {
 				game.ball_vel_y *= -1
 			}
 		}
+		if quads_overlap(
+			game.ball_pos_x,
+			game.ball_pos_y,
+			BALL_WIDTH,
+			BALL_HEIGHT,
+			game.paddle_pos_x,
+			1 - PADDLE_BOTTOM_MARGIN + PADDLE_HEIGHT / 2,
+			PADDLE_WIDTH,
+			PADDLE_HEIGHT,
+		) {
+			// handle ball-paddle collision:
+			// planning to just make the ball fast and not differentiate side hits from top hits for simplicity, hopefully it just feels like you got there just in time!
+			// also no need to handle bottom hits because hitting the bottom of the screen will make you lose!
+			game.ball_pos_y = 1 - PADDLE_BOTTOM_MARGIN - BALL_HEIGHT / 2
+			game.ball_vel_y *= -1
+		}
 		vertices, indices = get_drawing_data(game)
 		draw_frame(&renderer, vertices, indices)
 	}
@@ -85,4 +101,20 @@ key_callback :: proc "c" (
 			keys_state.right_held = false
 		}
 	}
+}
+
+quads_overlap :: proc(x1, y1, width1, height1, x2, y2, width2, height2: f32) -> bool {
+	lt1x := x1 - width1 / 2
+	lt1y := y1 - height1 / 2
+	rb1x := x1 + width1 / 2
+	rb1y := y1 + height1 / 2
+
+	lt2x := x2 - width2 / 2
+	lt2y := y2 - height2 / 2
+	rb2x := x2 + width2 / 2
+	rb2y := y2 + height2 / 2
+
+	if rb1y < lt2y || rb2y < lt1y {return false}
+	if lt1x > rb2x || lt2x > rb1x {return false}
+	return true
 }

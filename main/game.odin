@@ -18,6 +18,7 @@ PADDLE_SPEED :: 0.0025
 BALL_WIDTH :: 0.05
 BALL_HEIGHT :: 0.05
 BALL_COLOUR :: white
+BALL_SPEED :: 0.00025
 
 BACKGROUND_COLOUR :: grey
 
@@ -39,8 +40,8 @@ setup_game :: proc() -> (game: GameState) {
 	game.paddle_pos_x = 0
 	game.ball_pos_x = 0
 	game.ball_pos_y = 1 - PADDLE_BOTTOM_MARGIN - PADDLE_HEIGHT / 2
-	game.ball_vel_x = 0.00025
-	game.ball_vel_y = -0.00025
+	game.ball_vel_x = BALL_SPEED
+	game.ball_vel_y = -BALL_SPEED
 	for j in 0 ..< BLOCK_GRID_HEIGHT {
 		for i in 0 ..< BLOCK_GRID_WIDTH {
 			game.block_grid[j][i] = {
