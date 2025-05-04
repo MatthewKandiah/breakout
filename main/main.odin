@@ -10,16 +10,59 @@ index_backing_array: [INDEX_BUFFER_LEN]u32
 vertices: []Vertex
 indices: []u32
 
+KeysState :: struct {
+	left_held:  bool,
+	right_held: bool,
+}
+
+keys_state: KeysState
+
 main :: proc() {
 	renderer := setup_renderer()
 	game := setup_game()
-	// main loop
+
+	glfw.SetKeyCallback(renderer.window, key_callback)
+
+	start_time: i64 = time.now()._nsec
+	finish_time: i64 = time.now()._nsec
 	for !glfw.WindowShouldClose(renderer.window) {
 		glfw.PollEvents()
+		finish_time = time.now()._nsec
+		delta_t := cast(f32)(finish_time - start_time) / 1_000_000
+		start_time = finish_time
+		if keys_state.left_held && !keys_state.right_held {
+			game.paddle_pos_x -= PADDLE_SPEED * delta_t
+		}
+		if keys_state.right_held && !keys_state.left_held {
+			game.paddle_pos_x += PADDLE_SPEED * delta_t
+		}
 		vertices, indices = get_drawing_data(game)
 		draw_frame(&renderer, vertices, indices)
 	}
 
 	vk.DeviceWaitIdle(renderer.device)
 	teardown_renderer(&renderer)
+}
+
+key_callback :: proc "c" (
+	window: glfw.WindowHandle,
+	key: i32,
+	scancode: i32,
+	action: i32,
+	mods: i32,
+) {
+	if key == glfw.KEY_LEFT {
+		if action == glfw.PRESS {
+			keys_state.left_held = true
+		} else if action == glfw.RELEASE {
+			keys_state.left_held = false
+		}
+	}
+	if key == glfw.KEY_RIGHT {
+		if action == glfw.PRESS {
+			keys_state.right_held = true
+		} else if action == glfw.RELEASE {
+			keys_state.right_held = false
+		}
+	}
 }
