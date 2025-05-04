@@ -56,22 +56,79 @@ main :: proc() {
 				game.ball_vel_y *= -1
 			}
 		}
-		if quads_overlap(
-			game.ball_pos_x,
-			game.ball_pos_y,
-			BALL_WIDTH,
-			BALL_HEIGHT,
-			game.paddle_pos_x,
-			1 - PADDLE_BOTTOM_MARGIN + PADDLE_HEIGHT / 2,
-			PADDLE_WIDTH,
-			PADDLE_HEIGHT,
-		) {
-			// TODO-Matt: we're going to need to handle side and bottom collisions for blocks anyway, might as well work it out and handle it here
-			// handle ball-paddle collision:
-			// planning to just make the ball fast and not differentiate side hits from top hits for simplicity, hopefully it just feels like you got there just in time!
-			// also no need to handle bottom hits because hitting the bottom of the screen will make you lose!
-			game.ball_pos_y = 1 - PADDLE_BOTTOM_MARGIN - BALL_HEIGHT / 2
-			game.ball_vel_y *= -1
+		{ 	// handle ball hitting paddle
+			if game.ball_vel_y > 0 &&
+			   ball_intersects_horizontal(
+				   game,
+				   game.paddle_pos_x - PADDLE_WIDTH / 2,
+				   game.paddle_pos_x + PADDLE_WIDTH / 2,
+				   1 - PADDLE_BOTTOM_MARGIN,
+			   ) {
+				game.ball_pos_y = 1 - PADDLE_BOTTOM_MARGIN - BALL_HEIGHT / 2
+				game.ball_vel_y *= -1
+			} else if game.ball_vel_x > 0 &&
+			   ball_intersects_vertical(
+				   game,
+				   1 - PADDLE_BOTTOM_MARGIN,
+				   1 - PADDLE_BOTTOM_MARGIN + PADDLE_HEIGHT,
+				   game.paddle_pos_x - PADDLE_WIDTH / 2,
+			   ) {
+				game.ball_pos_x = game.paddle_pos_x - PADDLE_WIDTH / 2 - BALL_WIDTH / 2
+				game.ball_vel_x *= -1
+			} else if game.ball_vel_x < 0 &&
+			   ball_intersects_vertical(
+				   game,
+				   1 - PADDLE_BOTTOM_MARGIN,
+				   1 - PADDLE_BOTTOM_MARGIN + PADDLE_HEIGHT,
+				   game.paddle_pos_x + PADDLE_WIDTH / 2,
+			   ) {
+				game.ball_pos_x = game.paddle_pos_x + PADDLE_WIDTH / 2 + BALL_WIDTH / 2
+				game.ball_vel_x *= -1
+			}
+		}
+		{ 	// handle ball hitting blocks
+			for &block_line, row_index in game.block_grid {
+				for &block, col_index in block_line {
+					if !block.exists {continue}
+					if game.ball_vel_y > 0 &&
+					   ball_intersects_horizontal(
+						   game,
+						   -1 + cast(f32)col_index * BLOCK_WIDTH,
+						   -1 + cast(f32)(col_index + 1) * BLOCK_WIDTH,
+						   -1 + BLOCK_TOP_MARGIN + cast(f32)row_index * BLOCK_HEIGHT,
+					   ) {
+						block.exists = false
+						game.ball_vel_y *= -1
+					} else if game.ball_vel_y < 0 &&
+					   ball_intersects_horizontal(
+						   game,
+						   -1 + cast(f32)col_index * BLOCK_WIDTH,
+						   -1 + cast(f32)(col_index + 1) * BLOCK_WIDTH,
+						   -1 + BLOCK_TOP_MARGIN + cast(f32)(row_index + 1) * BLOCK_HEIGHT,
+					   ) {
+						block.exists = false
+						game.ball_vel_y *= -1
+					} else if game.ball_vel_x > 0 &&
+					   ball_intersects_vertical(
+						   game,
+						   -1 + BLOCK_TOP_MARGIN + cast(f32)row_index * BLOCK_HEIGHT,
+						   -1 + BLOCK_TOP_MARGIN + cast(f32)(row_index + 1) * BLOCK_HEIGHT,
+						   -1 + cast(f32)col_index * BLOCK_WIDTH,
+					   ) {
+						block.exists = false
+						game.ball_vel_x *= -1
+					} else if game.ball_vel_x < 0 &&
+					   ball_intersects_vertical(
+						   game,
+						   -1 + BLOCK_TOP_MARGIN + cast(f32)row_index * BLOCK_HEIGHT,
+						   -1 + BLOCK_TOP_MARGIN + cast(f32)(row_index + 1) * BLOCK_HEIGHT,
+						   -1 + cast(f32)(col_index + 1) * BLOCK_WIDTH,
+					   ) {
+						block.exists = false
+						game.ball_vel_x *= -1
+					}
+				}
+			}
 		}
 		vertices, indices = get_drawing_data(game)
 		draw_frame(&renderer, vertices, indices)
@@ -104,18 +161,17 @@ key_callback :: proc "c" (
 	}
 }
 
-quads_overlap :: proc(x1, y1, width1, height1, x2, y2, width2, height2: f32) -> bool {
-	lt1x := x1 - width1 / 2
-	lt1y := y1 - height1 / 2
-	rb1x := x1 + width1 / 2
-	rb1y := y1 + height1 / 2
+ball_intersects_horizontal :: proc(game: GameState, xleft, xright, y: f32) -> bool {
+	if xleft > xright {panic("left must not be greater than right")}
+	if game.ball_pos_y + BALL_HEIGHT < y || game.ball_pos_y - BALL_HEIGHT > y {return false}
+	if game.ball_pos_x + BALL_WIDTH < xleft || game.ball_pos_x - BALL_WIDTH > xright {return false}
+	return true
+}
 
-	lt2x := x2 - width2 / 2
-	lt2y := y2 - height2 / 2
-	rb2x := x2 + width2 / 2
-	rb2y := y2 + height2 / 2
-
-	if rb1y < lt2y || rb2y < lt1y {return false}
-	if lt1x > rb2x || lt2x > rb1x {return false}
+ball_intersects_vertical :: proc(game: GameState, ytop, ybottom, x: f32) -> bool {
+	if ytop > ybottom {panic("top must not be greater than bottom")}
+	if game.ball_pos_x + BALL_WIDTH < x || game.ball_pos_x - BALL_WIDTH > x {return false}
+	if game.ball_pos_y + BALL_HEIGHT < ytop ||
+	   game.ball_pos_y - BALL_WIDTH > ybottom {return false}
 	return true
 }
