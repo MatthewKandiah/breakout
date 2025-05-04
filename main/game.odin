@@ -23,6 +23,7 @@ BALL_SPEED :: 0.00025
 BACKGROUND_COLOUR :: grey
 
 GameState :: struct {
+	running:      bool,
 	ball_pos_x:   f32,
 	ball_pos_y:   f32,
 	ball_vel_x:   f32,
@@ -37,6 +38,7 @@ Block :: struct {
 }
 
 setup_game :: proc() -> (game: GameState) {
+	game.running = true
 	game.paddle_pos_x = 0
 	game.ball_pos_x = 0
 	game.ball_pos_y = 1 - PADDLE_BOTTOM_MARGIN - PADDLE_HEIGHT / 2
@@ -181,6 +183,80 @@ update_state :: proc(game: ^GameState, keys_state: KeysState, delta_t: f32) {
 	} else if game.ball_pos_y < -1 {
 		game.ball_pos_y = -1
 		game.ball_vel_y *= -1
+	}
+	{ 	// handle ball hitting paddle
+		if game.ball_vel_y > 0 &&
+		   ball_intersects_horizontal(
+			   game^,
+			   game.paddle_pos_x - PADDLE_WIDTH / 2,
+			   game.paddle_pos_x + PADDLE_WIDTH / 2,
+			   1 - PADDLE_BOTTOM_MARGIN,
+		   ) {
+			game.ball_pos_y = 1 - PADDLE_BOTTOM_MARGIN - BALL_HEIGHT / 2
+			game.ball_vel_y *= -1
+		} else if game.ball_vel_x > 0 &&
+		   ball_intersects_vertical(
+			   game^,
+			   1 - PADDLE_BOTTOM_MARGIN,
+			   1 - PADDLE_BOTTOM_MARGIN + PADDLE_HEIGHT,
+			   game.paddle_pos_x - PADDLE_WIDTH / 2,
+		   ) {
+			game.ball_pos_x = game.paddle_pos_x - PADDLE_WIDTH / 2 - BALL_WIDTH / 2
+			game.ball_vel_x *= -1
+		} else if game.ball_vel_x < 0 &&
+		   ball_intersects_vertical(
+			   game^,
+			   1 - PADDLE_BOTTOM_MARGIN,
+			   1 - PADDLE_BOTTOM_MARGIN + PADDLE_HEIGHT,
+			   game.paddle_pos_x + PADDLE_WIDTH / 2,
+		   ) {
+			game.ball_pos_x = game.paddle_pos_x + PADDLE_WIDTH / 2 + BALL_WIDTH / 2
+			game.ball_vel_x *= -1
+		}
+	}
+	{ 	// handle ball hitting blocks
+		for &block_line, row_index in game.block_grid {
+			for &block, col_index in block_line {
+				if !block.exists {continue}
+				if game.ball_vel_y > 0 &&
+				   ball_intersects_horizontal(
+					   game^,
+					   -1 + cast(f32)col_index * BLOCK_WIDTH,
+					   -1 + cast(f32)(col_index + 1) * BLOCK_WIDTH,
+					   -1 + BLOCK_TOP_MARGIN + cast(f32)row_index * BLOCK_HEIGHT,
+				   ) {
+					block.exists = false
+					game.ball_vel_y *= -1
+				} else if game.ball_vel_y < 0 &&
+				   ball_intersects_horizontal(
+					   game^,
+					   -1 + cast(f32)col_index * BLOCK_WIDTH,
+					   -1 + cast(f32)(col_index + 1) * BLOCK_WIDTH,
+					   -1 + BLOCK_TOP_MARGIN + cast(f32)(row_index + 1) * BLOCK_HEIGHT,
+				   ) {
+					block.exists = false
+					game.ball_vel_y *= -1
+				} else if game.ball_vel_x > 0 &&
+				   ball_intersects_vertical(
+					   game^,
+					   -1 + BLOCK_TOP_MARGIN + cast(f32)row_index * BLOCK_HEIGHT,
+					   -1 + BLOCK_TOP_MARGIN + cast(f32)(row_index + 1) * BLOCK_HEIGHT,
+					   -1 + cast(f32)col_index * BLOCK_WIDTH,
+				   ) {
+					block.exists = false
+					game.ball_vel_x *= -1
+				} else if game.ball_vel_x < 0 &&
+				   ball_intersects_vertical(
+					   game^,
+					   -1 + BLOCK_TOP_MARGIN + cast(f32)row_index * BLOCK_HEIGHT,
+					   -1 + BLOCK_TOP_MARGIN + cast(f32)(row_index + 1) * BLOCK_HEIGHT,
+					   -1 + cast(f32)(col_index + 1) * BLOCK_WIDTH,
+				   ) {
+					block.exists = false
+					game.ball_vel_x *= -1
+				}
+			}
+		}
 	}
 }
 
