@@ -10,6 +10,7 @@ index_backing_array: [INDEX_BUFFER_LEN]u32
 vertices: []Vertex
 indices: []u32
 
+// TODO-Matt: a bunch of this key handling and state updating should probably move to game.odin
 KeysState :: struct {
 	left_held:  bool,
 	right_held: bool,
