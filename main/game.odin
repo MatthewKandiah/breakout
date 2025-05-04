@@ -15,7 +15,17 @@ PADDLE_COLOUR :: cyan
 PADDLE_BOTTOM_MARGIN :: 0.3 + PADDLE_HEIGHT
 PADDLE_SPEED :: 0.0025
 
+BALL_WIDTH :: 0.05
+BALL_HEIGHT :: 0.05
+BALL_COLOUR :: white
+
+BACKGROUND_COLOUR :: grey
+
 GameState :: struct {
+	ball_pos_x:   f32,
+	ball_pos_y:   f32,
+	ball_vel_x:   f32,
+	ball_vel_y:   f32,
 	paddle_pos_x: f32,
 	block_grid:   [BLOCK_GRID_HEIGHT][BLOCK_GRID_WIDTH]Block,
 }
@@ -27,6 +37,10 @@ Block :: struct {
 
 setup_game :: proc() -> (game: GameState) {
 	game.paddle_pos_x = 0
+	game.ball_pos_x = 0
+	game.ball_pos_y = 1 - PADDLE_BOTTOM_MARGIN - PADDLE_HEIGHT / 2
+	game.ball_vel_x = 0.00025
+	game.ball_vel_y = -0.00025
 	for j in 0 ..< BLOCK_GRID_HEIGHT {
 		for i in 0 ..< BLOCK_GRID_WIDTH {
 			game.block_grid[j][i] = {
@@ -97,6 +111,37 @@ get_drawing_data :: proc(game: GameState) -> (vertices: []Vertex, indices: []u32
 		vertex_backing_array[vertex_count + 3] = {
 			pos = {base_x, base_y + PADDLE_HEIGHT},
 			col = PADDLE_COLOUR,
+		}
+
+		index_backing_array[index_count] = vertex_count
+		index_backing_array[index_count + 1] = vertex_count + 1
+		index_backing_array[index_count + 2] = vertex_count + 2
+		index_backing_array[index_count + 3] = vertex_count + 2
+		index_backing_array[index_count + 4] = vertex_count + 3
+		index_backing_array[index_count + 5] = vertex_count
+
+		vertex_count += 4
+		index_count += 6
+	}
+
+	{ 	// draw ball
+		base_x: f32 = game.ball_pos_x - BALL_WIDTH / 2
+		base_y: f32 = game.ball_pos_y - BALL_HEIGHT / 2
+		vertex_backing_array[vertex_count] = {
+			pos = {base_x, base_y},
+			col = BALL_COLOUR,
+		}
+		vertex_backing_array[vertex_count + 1] = {
+			pos = {base_x + BALL_WIDTH, base_y},
+			col = BALL_COLOUR,
+		}
+		vertex_backing_array[vertex_count + 2] = {
+			pos = {base_x + BALL_WIDTH, base_y + BALL_HEIGHT},
+			col = BALL_COLOUR,
+		}
+		vertex_backing_array[vertex_count + 3] = {
+			pos = {base_x, base_y + BALL_HEIGHT},
+			col = BALL_COLOUR,
 		}
 
 		index_backing_array[index_count] = vertex_count

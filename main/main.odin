@@ -28,14 +28,33 @@ main :: proc() {
 	finish_time: i64 = time.now()._nsec
 	for !glfw.WindowShouldClose(renderer.window) {
 		glfw.PollEvents()
-		finish_time = time.now()._nsec
-		delta_t := cast(f32)(finish_time - start_time) / 1_000_000
-		start_time = finish_time
-		if keys_state.left_held && !keys_state.right_held {
-			game.paddle_pos_x = clamp(game.paddle_pos_x - PADDLE_SPEED * delta_t, -1, 1)
-		}
-		if keys_state.right_held && !keys_state.left_held {
-			game.paddle_pos_x = clamp(game.paddle_pos_x + PADDLE_SPEED * delta_t, -1, 1)
+		{ 	// update state
+			finish_time = time.now()._nsec
+			delta_t := cast(f32)(finish_time - start_time) / 1_000_000
+			start_time = finish_time
+			if keys_state.left_held && !keys_state.right_held {
+				game.paddle_pos_x = clamp(game.paddle_pos_x - PADDLE_SPEED * delta_t, -1, 1)
+			}
+			if keys_state.right_held && !keys_state.left_held {
+				game.paddle_pos_x = clamp(game.paddle_pos_x + PADDLE_SPEED * delta_t, -1, 1)
+			}
+			// updating ball position - dumbly assume the ball won't move far enough to warp through a block in a single tick
+			game.ball_pos_x += game.ball_vel_x
+			if game.ball_pos_x > 1 {
+				game.ball_pos_x = 1
+				game.ball_vel_x *= -1
+			} else if game.ball_pos_x < -1 {
+				game.ball_pos_x = -1
+				game.ball_vel_x *= -1
+			}
+			game.ball_pos_y += game.ball_vel_y
+			if game.ball_pos_y > 1 {
+				game.ball_pos_y = 1
+				game.ball_vel_y *= -1
+			} else if game.ball_pos_y < -1 {
+				game.ball_pos_y = -1
+				game.ball_vel_y *= -1
+			}
 		}
 		vertices, indices = get_drawing_data(game)
 		draw_frame(&renderer, vertices, indices)

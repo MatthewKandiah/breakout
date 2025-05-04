@@ -19,6 +19,9 @@ INDEX_BUFFER_LEN :: 1_000
 VERTEX_BUFFER_SIZE :: VERTEX_BUFFER_LEN * size_of(Vertex)
 INDEX_BUFFER_SIZE :: INDEX_BUFFER_LEN * size_of(u32)
 
+white :: glsl.vec3{1, 1, 1}
+black :: glsl.vec3{0, 0, 0}
+grey :: glsl.vec3{0.6, 0.6, 0.6}
 pink :: glsl.vec3{1, 0, 1}
 green :: glsl.vec3{0, 1, 0}
 yellow :: glsl.vec3{1, 1, 0}
@@ -1117,7 +1120,7 @@ draw_frame :: proc(using state: ^RendererState, vertices: []Vertex, indices: []u
 			panic("failed to begin recording command buffer")
 		}
 		clear_colour := vk.ClearValue {
-			color = {float32 = {green.r, green.g, green.b, 1}},
+			color = {float32 = {BACKGROUND_COLOUR.r, BACKGROUND_COLOUR.g, BACKGROUND_COLOUR.b, 1}},
 		}
 		render_pass_begin_info := vk.RenderPassBeginInfo {
 			sType = .RENDER_PASS_BEGIN_INFO,
