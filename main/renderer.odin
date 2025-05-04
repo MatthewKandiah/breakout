@@ -23,6 +23,7 @@ pink :: glsl.vec3{1, 0, 1}
 green :: glsl.vec3{0, 1, 0}
 yellow :: glsl.vec3{1, 1, 0}
 red :: glsl.vec3{1, 0, 0}
+cyan :: glsl.vec3{0, 1, 1}
 
 Vertex :: struct {
 	pos: glsl.vec2,
