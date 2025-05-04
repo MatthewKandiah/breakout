@@ -66,6 +66,7 @@ main :: proc() {
 			PADDLE_WIDTH,
 			PADDLE_HEIGHT,
 		) {
+			// TODO-Matt: we're going to need to handle side and bottom collisions for blocks anyway, might as well work it out and handle it here
 			// handle ball-paddle collision:
 			// planning to just make the ball fast and not differentiate side hits from top hits for simplicity, hopefully it just feels like you got there just in time!
 			// also no need to handle bottom hits because hitting the bottom of the screen will make you lose!
