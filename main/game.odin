@@ -160,7 +160,7 @@ get_drawing_data :: proc(game: GameState) -> (vertices: []Vertex, indices: []u32
 	return vertex_backing_array[0:vertex_count], index_backing_array[0:index_count]
 }
 
-update_state :: proc(game: ^GameState, keys_state: KeysState, delta_t: f32, sound: ^SoundState) {
+update_state :: proc(game: ^GameState, keys_state: KeysState, delta_t: f32, sound: SoundState) {
 	if keys_state.left_held && !keys_state.right_held {
 		game.paddle_pos_x = clamp(game.paddle_pos_x - PADDLE_SPEED * delta_t, -1, 1)
 	}

@@ -45,6 +45,7 @@ main :: proc() {
 	renderer := setup_renderer()
 	game := setup_game()
 	sound := setup_sound()
+	defer teardown_sound(sound)
 
 	glfw.SetKeyCallback(renderer.window, key_callback)
 
@@ -55,7 +56,7 @@ main :: proc() {
 		finish_time = time.now()._nsec
 		delta_t := cast(f32)(finish_time - start_time) / 1_000_000
 		start_time = finish_time
-		update_state(&game, keys_state, delta_t, &sound)
+		update_state(&game, keys_state, delta_t, sound)
 		vertices, indices = get_drawing_data(game)
 		draw_frame(&renderer, vertices, indices)
 	}
