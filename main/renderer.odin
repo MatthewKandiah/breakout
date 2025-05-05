@@ -365,21 +365,14 @@ setup_renderer :: proc() -> RendererState {
 	}
 
 	{ 	// create descriptor sets for uniform buffer object and combined image sampler
-		descriptor_set_layout_binding_ubo := vk.DescriptorSetLayoutBinding {
-			binding         = 0,
-			descriptorType  = .UNIFORM_BUFFER,
-			descriptorCount = 1,
-			stageFlags      = {.VERTEX},
-		}
 		descriptor_set_layout_binding_sampler := vk.DescriptorSetLayoutBinding {
-			binding            = 1,
+			binding            = 0,
 			descriptorType     = .COMBINED_IMAGE_SAMPLER,
 			descriptorCount    = 1,
 			pImmutableSamplers = nil,
 			stageFlags         = {.FRAGMENT},
 		}
 		descriptor_set_bindings := []vk.DescriptorSetLayoutBinding {
-			descriptor_set_layout_binding_ubo,
 			descriptor_set_layout_binding_sampler,
 		}
 		descriptor_set_layout_create_info := vk.DescriptorSetLayoutCreateInfo {
@@ -760,16 +753,11 @@ setup_renderer :: proc() -> RendererState {
 	}
 
 	{ 	// create descriptor pool
-		descriptor_pool_size_ubo := vk.DescriptorPoolSize {
-			type            = .UNIFORM_BUFFER,
-			descriptorCount = MAX_FRAMES_IN_FLIGHT,
-		}
 		descriptor_pool_size_sampler := vk.DescriptorPoolSize {
 			type            = .COMBINED_IMAGE_SAMPLER,
 			descriptorCount = MAX_FRAMES_IN_FLIGHT,
 		}
 		pool_sizes := []vk.DescriptorPoolSize {
-			descriptor_pool_size_ubo,
 			descriptor_pool_size_sampler,
 		}
 		descriptor_pool_create_info := vk.DescriptorPoolCreateInfo {
@@ -816,7 +804,7 @@ setup_renderer :: proc() -> RendererState {
 			descriptor_write_sampler := vk.WriteDescriptorSet {
 				sType           = .WRITE_DESCRIPTOR_SET,
 				dstSet          = state.descriptor_sets[i],
-				dstBinding      = 1,
+				dstBinding      = 0,
 				dstArrayElement = 0,
 				descriptorType  = .COMBINED_IMAGE_SAMPLER,
 				descriptorCount = 1,
