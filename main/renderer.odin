@@ -7,6 +7,7 @@ import "core:math/linalg/glsl"
 import "core:os"
 import "core:time"
 import "vendor:glfw"
+import stbi "vendor:stb/image"
 import vk "vendor:vulkan"
 
 REQUIRED_LAYER_NAMES := []cstring{"VK_LAYER_KHRONOS_validation"}
@@ -53,8 +54,8 @@ RendererState :: struct {
 	command_buffers:                 [MAX_FRAMES_IN_FLIGHT]vk.CommandBuffer,
 	command_pool:                    vk.CommandPool,
 	descriptor_pool:                 vk.DescriptorPool,
-	descriptor_sets:                 [MAX_FRAMES_IN_FLIGHT]vk.DescriptorSet,
 	descriptor_set_layout:           vk.DescriptorSetLayout,
+	descriptor_sets:                 [MAX_FRAMES_IN_FLIGHT]vk.DescriptorSet,
 	device:                          vk.Device,
 	frame_buffer_resized:            bool,
 	frame_index:                     u32,
@@ -62,8 +63,8 @@ RendererState :: struct {
 	graphics_queue:                  vk.Queue,
 	graphics_queue_family_index:     u32,
 	index_buffers:                   [MAX_FRAMES_IN_FLIGHT]vk.Buffer,
-	index_buffers_memory:            [MAX_FRAMES_IN_FLIGHT]vk.DeviceMemory,
 	index_buffers_mapped:            [MAX_FRAMES_IN_FLIGHT]rawptr,
+	index_buffers_memory:            [MAX_FRAMES_IN_FLIGHT]vk.DeviceMemory,
 	instance:                        vk.Instance,
 	physical_device:                 vk.PhysicalDevice,
 	pipeline_layout:                 vk.PipelineLayout,
@@ -85,10 +86,14 @@ RendererState :: struct {
 	sync_fences_in_flight:           [MAX_FRAMES_IN_FLIGHT]vk.Fence,
 	sync_semaphores_image_available: [MAX_FRAMES_IN_FLIGHT]vk.Semaphore,
 	sync_semaphores_render_finished: [MAX_FRAMES_IN_FLIGHT]vk.Semaphore,
-	window:                          glfw.WindowHandle,
+	texture_image:                   vk.Image,
+	texture_image_memory:            vk.DeviceMemory,
+	texture_image_view:              vk.ImageView,
+	texture_sampler:                 vk.Sampler,
 	vertex_buffers:                  [MAX_FRAMES_IN_FLIGHT]vk.Buffer,
-	vertex_buffers_memory:           [MAX_FRAMES_IN_FLIGHT]vk.DeviceMemory,
 	vertex_buffers_mapped:           [MAX_FRAMES_IN_FLIGHT]rawptr,
+	vertex_buffers_memory:           [MAX_FRAMES_IN_FLIGHT]vk.DeviceMemory,
+	window:                          glfw.WindowHandle,
 }
 
 setup_renderer :: proc() -> RendererState {
@@ -568,6 +573,153 @@ setup_renderer :: proc() -> RendererState {
 		}
 	}
 
+	{ 	// create texture image
+		width, height, channel_count: i32
+		pixels := stbi.load("./smiley.png", &width, &height, &channel_count, 0)
+    if pixels == nil {
+      panic("failed to load image data")
+    }
+		if channel_count != 4 {
+			panic("ASSERT: I've assumed 4 channel input images")
+		}
+		image_size := cast(vk.DeviceSize)(width * height * 4)
+		staging_buffer, staging_buffer_memory := create_buffer(
+			&state,
+			image_size,
+			{.TRANSFER_SRC},
+			{.HOST_VISIBLE, .HOST_COHERENT},
+		)
+		defer {
+			vk.DestroyBuffer(state.device, staging_buffer, nil)
+			vk.FreeMemory(state.device, staging_buffer_memory, nil)
+		}
+		staging_buffer_data: rawptr
+		vk.MapMemory(state.device, staging_buffer_memory, 0, image_size, {}, &staging_buffer_data)
+		intrinsics.mem_copy_non_overlapping(staging_buffer_data, pixels, image_size)
+		vk.UnmapMemory(state.device, staging_buffer_memory)
+		texture_image_create_info := vk.ImageCreateInfo {
+			sType = .IMAGE_CREATE_INFO,
+			imageType = .D2,
+			extent = {width = cast(u32)width, height = cast(u32)height, depth = 1},
+			mipLevels = 1,
+			arrayLayers = 1,
+			format = .R8G8B8A8_SRGB,
+			tiling = .OPTIMAL,
+			initialLayout = .UNDEFINED,
+			usage = {.TRANSFER_DST, .SAMPLED},
+			sharingMode = .EXCLUSIVE,
+			samples = {._1},
+		}
+		if res := vk.CreateImage(
+			state.device,
+			&texture_image_create_info,
+			nil,
+			&state.texture_image,
+		); res != .SUCCESS {
+			panic("failed to create texture image")
+		}
+		image_memory_requirements: vk.MemoryRequirements
+		vk.GetImageMemoryRequirements(
+			state.device,
+			state.texture_image,
+			&image_memory_requirements,
+		)
+		image_allocate_info := vk.MemoryAllocateInfo {
+			sType           = .MEMORY_ALLOCATE_INFO,
+			allocationSize  = image_memory_requirements.size,
+			memoryTypeIndex = find_memory_type(
+				&state,
+				image_memory_requirements.memoryTypeBits,
+				{.DEVICE_LOCAL},
+			),
+		}
+		if res := vk.AllocateMemory(
+			state.device,
+			&image_allocate_info,
+			nil,
+			&state.texture_image_memory,
+		); res != .SUCCESS {
+			panic("failed to allocate image memory")
+		}
+		vk.BindImageMemory(state.device, state.texture_image, state.texture_image_memory, 0)
+		transition_image_layout(
+			&state,
+			state.texture_image,
+			.R8G8B8A8_SRGB,
+			.UNDEFINED,
+			.TRANSFER_DST_OPTIMAL,
+		)
+		copy_buffer_to_image(
+			&state,
+			staging_buffer,
+			state.texture_image,
+			cast(u32)width,
+			cast(u32)height,
+		)
+		transition_image_layout(
+			&state,
+			state.texture_image,
+			.R8G8B8A8_SRGB,
+			.TRANSFER_DST_OPTIMAL,
+			.SHADER_READ_ONLY_OPTIMAL,
+		)
+	}
+
+	{ 	// create texture image view
+		image_view_create_info := vk.ImageViewCreateInfo {
+			sType = .IMAGE_VIEW_CREATE_INFO,
+			image = state.texture_image,
+			viewType = .D2,
+			format = .R8G8B8A8_SRGB,
+			subresourceRange = {
+				aspectMask = {.COLOR},
+				baseMipLevel = 0,
+				levelCount = 1,
+				baseArrayLayer = 0,
+				layerCount = 1,
+			},
+		}
+		if res := vk.CreateImageView(
+			state.device,
+			&image_view_create_info,
+			nil,
+			&state.texture_image_view,
+		); res != .SUCCESS {
+			panic("failed to create texture image view")
+		}
+	}
+
+	{ 	// create texture sampler
+		physical_device_properties: vk.PhysicalDeviceProperties
+		vk.GetPhysicalDeviceProperties(state.physical_device, &physical_device_properties)
+		sampler_create_info := vk.SamplerCreateInfo {
+			sType                   = .SAMPLER_CREATE_INFO,
+			magFilter               = .LINEAR,
+			minFilter               = .LINEAR,
+			addressModeU            = .REPEAT,
+			addressModeV            = .REPEAT,
+			addressModeW            = .REPEAT,
+			anisotropyEnable        = true,
+			maxAnisotropy           = physical_device_properties.limits.maxSamplerAnisotropy,
+			borderColor             = .INT_OPAQUE_BLACK,
+			unnormalizedCoordinates = false,
+			compareEnable           = false,
+			compareOp               = .ALWAYS,
+			mipmapMode              = .LINEAR,
+			mipLodBias              = 0,
+			minLod                  = 0,
+			maxLod                  = 0,
+		}
+		if res := vk.CreateSampler(
+			state.device,
+			&sampler_create_info,
+			nil,
+			&state.texture_sampler,
+		); res != .SUCCESS {
+			panic("failed to create texture sampler")
+		}
+	}
+
 	for i in 0 ..< MAX_FRAMES_IN_FLIGHT {
 		state.vertex_buffers[i], state.vertex_buffers_memory[i] = create_buffer(
 			&state,
@@ -716,6 +868,10 @@ teardown_renderer :: proc(state: ^RendererState) {
 		vk.DestroyBuffer(state.device, state.vertex_buffers[i], nil)
 		vk.FreeMemory(state.device, state.vertex_buffers_memory[i], nil)
 	}
+  vk.DestroySampler(state.device, state.texture_sampler, nil)
+  vk.DestroyImageView(state.device, state.texture_image_view, nil)
+  vk.DestroyImage(state.device, state.texture_image, nil)
+  vk.FreeMemory(state.device, state.texture_image_memory, nil)
 	vk.DestroyCommandPool(state.device, state.command_pool, nil)
 	teardown_swapchain(state)
 	vk.DestroyPipeline(state.device, state.graphics_pipeline, nil)
@@ -1222,4 +1378,88 @@ draw_frame :: proc(using state: ^RendererState, vertices: []Vertex, indices: []u
 
 	frame_index += 1
 	frame_index %= MAX_FRAMES_IN_FLIGHT
+}
+
+transition_image_layout :: proc(
+	state: ^RendererState,
+	image: vk.Image,
+	format: vk.Format,
+	old_layout: vk.ImageLayout,
+	new_layout: vk.ImageLayout,
+) {
+	temp_command_buffer := begin_single_time_commands(state)
+	memory_barrier := vk.ImageMemoryBarrier {
+		sType = .IMAGE_MEMORY_BARRIER,
+		oldLayout = old_layout,
+		newLayout = new_layout,
+		srcQueueFamilyIndex = vk.QUEUE_FAMILY_IGNORED,
+		dstQueueFamilyIndex = vk.QUEUE_FAMILY_IGNORED,
+		image = image,
+		subresourceRange = {
+			aspectMask = {.COLOR},
+			baseMipLevel = 0,
+			levelCount = 1,
+			baseArrayLayer = 0,
+			layerCount = 1,
+		},
+	}
+	source_stage, destination_stage: vk.PipelineStageFlags
+	if old_layout == .UNDEFINED && new_layout == .TRANSFER_DST_OPTIMAL {
+		memory_barrier.srcAccessMask = {}
+		memory_barrier.dstAccessMask = {.TRANSFER_WRITE}
+		source_stage = {.TOP_OF_PIPE}
+		destination_stage = {.TRANSFER}
+	} else if old_layout == .TRANSFER_DST_OPTIMAL && new_layout == .SHADER_READ_ONLY_OPTIMAL {
+		memory_barrier.srcAccessMask = {.TRANSFER_WRITE}
+		memory_barrier.dstAccessMask = {.SHADER_READ}
+		source_stage = {.TRANSFER}
+		destination_stage = {.FRAGMENT_SHADER}
+	} else {
+		panic("unsupported layout transition")
+	}
+	vk.CmdPipelineBarrier(
+		temp_command_buffer,
+		source_stage,
+		destination_stage,
+		{},
+		0,
+		nil,
+		0,
+		nil,
+		1,
+		&memory_barrier,
+	)
+	end_single_time_commands(state, &temp_command_buffer)
+}
+
+copy_buffer_to_image :: proc(
+	state: ^RendererState,
+	buffer: vk.Buffer,
+	image: vk.Image,
+	width: u32,
+	height: u32,
+) {
+	temp_command_buffer := begin_single_time_commands(state)
+	buffer_image_copy := vk.BufferImageCopy {
+		bufferOffset = 0,
+		bufferRowLength = 0,
+		bufferImageHeight = 0,
+		imageSubresource = {
+			aspectMask = {.COLOR},
+			mipLevel = 0,
+			baseArrayLayer = 0,
+			layerCount = 1,
+		},
+		imageOffset = {0, 0, 0},
+		imageExtent = {width, height, 1},
+	}
+	vk.CmdCopyBufferToImage(
+		temp_command_buffer,
+		buffer,
+		image,
+		.TRANSFER_DST_OPTIMAL,
+		1,
+		&buffer_image_copy,
+	)
+	end_single_time_commands(state, &temp_command_buffer)
 }
