@@ -30,8 +30,9 @@ red :: glsl.vec3{1, 0, 0}
 cyan :: glsl.vec3{0, 1, 1}
 
 Vertex :: struct {
-	pos: glsl.vec2,
-	col: glsl.vec3,
+	pos:       glsl.vec2,
+	col:       glsl.vec3,
+	tex_coord: glsl.vec2,
 }
 
 vertex_input_binding_description := vk.VertexInputBindingDescription {
@@ -47,6 +48,12 @@ vertex_input_attribute_descriptions := []vk.VertexInputAttributeDescription {
 		location = 1,
 		format = .R32G32B32_SFLOAT,
 		offset = cast(u32)offset_of(Vertex, col),
+	},
+	{
+		binding = 0,
+		location = 2,
+		format = .R32G32_SFLOAT,
+		offset = cast(u32)offset_of(Vertex, tex_coord),
 	},
 }
 
@@ -576,9 +583,9 @@ setup_renderer :: proc() -> RendererState {
 	{ 	// create texture image
 		width, height, channel_count: i32
 		pixels := stbi.load("./smiley.png", &width, &height, &channel_count, 0)
-    if pixels == nil {
-      panic("failed to load image data")
-    }
+		if pixels == nil {
+			panic("failed to load image data")
+		}
 		if channel_count != 4 {
 			panic("ASSERT: I've assumed 4 channel input images")
 		}
@@ -799,6 +806,31 @@ setup_renderer :: proc() -> RendererState {
 		); res != .SUCCESS {
 			panic("failed to allocate descriptor sets")
 		}
+
+		for i in 0 ..< MAX_FRAMES_IN_FLIGHT {
+			descriptor_image_info := vk.DescriptorImageInfo {
+				imageLayout = .SHADER_READ_ONLY_OPTIMAL,
+				imageView   = state.texture_image_view,
+				sampler     = state.texture_sampler,
+			}
+			descriptor_write_sampler := vk.WriteDescriptorSet {
+				sType           = .WRITE_DESCRIPTOR_SET,
+				dstSet          = state.descriptor_sets[i],
+				dstBinding      = 1,
+				dstArrayElement = 0,
+				descriptorType  = .COMBINED_IMAGE_SAMPLER,
+				descriptorCount = 1,
+				pImageInfo      = &descriptor_image_info,
+			}
+			descriptor_writes := []vk.WriteDescriptorSet{descriptor_write_sampler}
+			vk.UpdateDescriptorSets(
+				state.device,
+				cast(u32)len(descriptor_writes),
+				raw_data(descriptor_writes),
+				0,
+				nil,
+			)
+		}
 	}
 
 	{ 	// create command buffers
@@ -868,10 +900,10 @@ teardown_renderer :: proc(state: ^RendererState) {
 		vk.DestroyBuffer(state.device, state.vertex_buffers[i], nil)
 		vk.FreeMemory(state.device, state.vertex_buffers_memory[i], nil)
 	}
-  vk.DestroySampler(state.device, state.texture_sampler, nil)
-  vk.DestroyImageView(state.device, state.texture_image_view, nil)
-  vk.DestroyImage(state.device, state.texture_image, nil)
-  vk.FreeMemory(state.device, state.texture_image_memory, nil)
+	vk.DestroySampler(state.device, state.texture_sampler, nil)
+	vk.DestroyImageView(state.device, state.texture_image_view, nil)
+	vk.DestroyImage(state.device, state.texture_image, nil)
+	vk.FreeMemory(state.device, state.texture_image_memory, nil)
 	vk.DestroyCommandPool(state.device, state.command_pool, nil)
 	teardown_swapchain(state)
 	vk.DestroyPipeline(state.device, state.graphics_pipeline, nil)

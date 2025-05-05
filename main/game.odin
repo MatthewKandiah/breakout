@@ -17,7 +17,7 @@ PADDLE_SPEED :: 0.0025
 
 BALL_WIDTH :: 0.05
 BALL_HEIGHT :: 0.05
-BALL_COLOUR :: white
+BALL_COLOUR :: green
 BALL_SPEED :: 0.00025
 
 BACKGROUND_COLOUR :: grey
@@ -67,20 +67,24 @@ get_drawing_data :: proc(game: GameState) -> (vertices: []Vertex, indices: []u32
 				base_y: f32 = -1 + cast(f32)row_index * BLOCK_HEIGHT + BLOCK_TOP_MARGIN
 				colour := red if (row_index + col_index) % 2 == 0 else yellow
 				vertex_backing_array[vertex_count] = {
-					pos = {base_x, base_y},
-					col = colour,
+					pos       = {base_x, base_y},
+					col       = colour,
+					tex_coord = {1, 0},
 				}
 				vertex_backing_array[vertex_count + 1] = {
-					pos = {base_x + BLOCK_WIDTH, base_y},
-					col = colour,
+					pos       = {base_x + BLOCK_WIDTH, base_y},
+					col       = colour,
+					tex_coord = {0, 0},
 				}
 				vertex_backing_array[vertex_count + 2] = {
-					pos = {base_x + BLOCK_WIDTH, base_y + BLOCK_HEIGHT},
-					col = colour,
+					pos       = {base_x + BLOCK_WIDTH, base_y + BLOCK_HEIGHT},
+					col       = colour,
+					tex_coord = {0, 1},
 				}
 				vertex_backing_array[vertex_count + 3] = {
-					pos = {base_x, base_y + BLOCK_HEIGHT},
-					col = colour,
+					pos       = {base_x, base_y + BLOCK_HEIGHT},
+					col       = colour,
+					tex_coord = {1, 1},
 				}
 
 				index_backing_array[index_count] = vertex_count
@@ -100,20 +104,24 @@ get_drawing_data :: proc(game: GameState) -> (vertices: []Vertex, indices: []u32
 		base_x: f32 = game.paddle_pos_x - PADDLE_WIDTH / 2
 		base_y: f32 = 1 - PADDLE_BOTTOM_MARGIN
 		vertex_backing_array[vertex_count] = {
-			pos = {base_x, base_y},
-			col = PADDLE_COLOUR,
+			pos       = {base_x, base_y},
+			col       = PADDLE_COLOUR,
+			tex_coord = {1, 0},
 		}
 		vertex_backing_array[vertex_count + 1] = {
-			pos = {base_x + PADDLE_WIDTH, base_y},
-			col = PADDLE_COLOUR,
+			pos       = {base_x + PADDLE_WIDTH, base_y},
+			col       = PADDLE_COLOUR,
+			tex_coord = {0, 0},
 		}
 		vertex_backing_array[vertex_count + 2] = {
-			pos = {base_x + PADDLE_WIDTH, base_y + PADDLE_HEIGHT},
-			col = PADDLE_COLOUR,
+			pos       = {base_x + PADDLE_WIDTH, base_y + PADDLE_HEIGHT},
+			col       = PADDLE_COLOUR,
+			tex_coord = {0, 1},
 		}
 		vertex_backing_array[vertex_count + 3] = {
-			pos = {base_x, base_y + PADDLE_HEIGHT},
-			col = PADDLE_COLOUR,
+			pos       = {base_x, base_y + PADDLE_HEIGHT},
+			col       = PADDLE_COLOUR,
+			tex_coord = {1, 1},
 		}
 
 		index_backing_array[index_count] = vertex_count
@@ -131,20 +139,24 @@ get_drawing_data :: proc(game: GameState) -> (vertices: []Vertex, indices: []u32
 		base_x: f32 = game.ball_pos_x - BALL_WIDTH / 2
 		base_y: f32 = game.ball_pos_y - BALL_HEIGHT / 2
 		vertex_backing_array[vertex_count] = {
-			pos = {base_x, base_y},
-			col = BALL_COLOUR,
+			pos       = {base_x, base_y},
+			col       = BALL_COLOUR,
+			tex_coord = {1, 0},
 		}
 		vertex_backing_array[vertex_count + 1] = {
-			pos = {base_x + BALL_WIDTH, base_y},
-			col = BALL_COLOUR,
+			pos       = {base_x + BALL_WIDTH, base_y},
+			col       = BALL_COLOUR,
+			tex_coord = {0, 0},
 		}
 		vertex_backing_array[vertex_count + 2] = {
-			pos = {base_x + BALL_WIDTH, base_y + BALL_HEIGHT},
-			col = BALL_COLOUR,
+			pos       = {base_x + BALL_WIDTH, base_y + BALL_HEIGHT},
+			col       = BALL_COLOUR,
+			tex_coord = {0, 1},
 		}
 		vertex_backing_array[vertex_count + 3] = {
-			pos = {base_x, base_y + BALL_HEIGHT},
-			col = BALL_COLOUR,
+			pos       = {base_x, base_y + BALL_HEIGHT},
+			col       = BALL_COLOUR,
+			tex_coord = {1, 1},
 		}
 
 		index_backing_array[index_count] = vertex_count
