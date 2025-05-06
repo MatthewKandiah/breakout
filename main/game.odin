@@ -69,7 +69,7 @@ get_drawing_data :: proc(game: GameState) -> (vertices: []Vertex, indices: []u32
 				vertex_backing_array[vertex_count] = {
 					pos       = {base_x, base_y},
 					col       = colour,
-					tex_coord = {1, 0},
+					tex_coord = {512, 0},
 				}
 				vertex_backing_array[vertex_count + 1] = {
 					pos       = {base_x + BLOCK_WIDTH, base_y},
@@ -79,12 +79,12 @@ get_drawing_data :: proc(game: GameState) -> (vertices: []Vertex, indices: []u32
 				vertex_backing_array[vertex_count + 2] = {
 					pos       = {base_x + BLOCK_WIDTH, base_y + BLOCK_HEIGHT},
 					col       = colour,
-					tex_coord = {0, 1},
+					tex_coord = {0, 512},
 				}
 				vertex_backing_array[vertex_count + 3] = {
 					pos       = {base_x, base_y + BLOCK_HEIGHT},
 					col       = colour,
-					tex_coord = {1, 1},
+					tex_coord = {512, 512},
 				}
 
 				index_backing_array[index_count] = vertex_count
@@ -106,22 +106,22 @@ get_drawing_data :: proc(game: GameState) -> (vertices: []Vertex, indices: []u32
 		vertex_backing_array[vertex_count] = {
 			pos       = {base_x, base_y},
 			col       = PADDLE_COLOUR,
-			tex_coord = {1, 0},
+			tex_coord = {1024, 0},
 		}
 		vertex_backing_array[vertex_count + 1] = {
 			pos       = {base_x + PADDLE_WIDTH, base_y},
 			col       = PADDLE_COLOUR,
-			tex_coord = {0, 0},
+			tex_coord = {512, 0},
 		}
 		vertex_backing_array[vertex_count + 2] = {
 			pos       = {base_x + PADDLE_WIDTH, base_y + PADDLE_HEIGHT},
 			col       = PADDLE_COLOUR,
-			tex_coord = {0, 1},
+			tex_coord = {512, 512},
 		}
 		vertex_backing_array[vertex_count + 3] = {
 			pos       = {base_x, base_y + PADDLE_HEIGHT},
 			col       = PADDLE_COLOUR,
-			tex_coord = {1, 1},
+			tex_coord = {1024, 512},
 		}
 
 		index_backing_array[index_count] = vertex_count
@@ -141,22 +141,22 @@ get_drawing_data :: proc(game: GameState) -> (vertices: []Vertex, indices: []u32
 		vertex_backing_array[vertex_count] = {
 			pos       = {base_x, base_y},
 			col       = BALL_COLOUR,
-			tex_coord = {1, 0},
+			tex_coord = {1984, 0},
 		}
 		vertex_backing_array[vertex_count + 1] = {
 			pos       = {base_x + BALL_WIDTH, base_y},
 			col       = BALL_COLOUR,
-			tex_coord = {0, 0},
+			tex_coord = {1024, 0},
 		}
 		vertex_backing_array[vertex_count + 2] = {
 			pos       = {base_x + BALL_WIDTH, base_y + BALL_HEIGHT},
 			col       = BALL_COLOUR,
-			tex_coord = {0, 1},
+			tex_coord = {1024, 960},
 		}
 		vertex_backing_array[vertex_count + 3] = {
 			pos       = {base_x, base_y + BALL_HEIGHT},
 			col       = BALL_COLOUR,
-			tex_coord = {1, 1},
+			tex_coord = {1984, 960},
 		}
 
 		index_backing_array[index_count] = vertex_count

@@ -364,7 +364,7 @@ setup_renderer :: proc() -> RendererState {
 		}
 	}
 
-	{ 	// create descriptor sets for uniform buffer object and combined image sampler
+	{ 	// create descriptor sets for combined image sampler
 		descriptor_set_layout_binding_sampler := vk.DescriptorSetLayoutBinding {
 			binding            = 0,
 			descriptorType     = .COMBINED_IMAGE_SAMPLER,
@@ -575,7 +575,7 @@ setup_renderer :: proc() -> RendererState {
 
 	{ 	// create texture image
 		width, height, channel_count: i32
-		pixels := stbi.load("./smiley.png", &width, &height, &channel_count, 0)
+		pixels := stbi.load("./textures.png", &width, &height, &channel_count, 0)
 		if pixels == nil {
 			panic("failed to load image data")
 		}
@@ -702,7 +702,7 @@ setup_renderer :: proc() -> RendererState {
 			anisotropyEnable        = true,
 			maxAnisotropy           = physical_device_properties.limits.maxSamplerAnisotropy,
 			borderColor             = .INT_OPAQUE_BLACK,
-			unnormalizedCoordinates = false,
+			unnormalizedCoordinates = true,
 			compareEnable           = false,
 			compareOp               = .ALWAYS,
 			mipmapMode              = .LINEAR,
